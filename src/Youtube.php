@@ -363,4 +363,57 @@ class Youtube
     {
         return call_user_func_array([$this->client, $method], $args);
     }
+
+        /**
+	 * Updates a video that was uploaded to YouTube
+	 * @param  string 	$id    		The YouTube ID of the video in question.
+	 * @param  array 	$snippet 	An array of data.
+	 * @param  string 	$status  	The status of the uploaded video, set to 'public' by default.
+	 * @return mixed
+	 */
+    public function update($id, array $data, $privacyStatus = 'public')
+    {
+
+        $this->handleAccessToken();
+        
+        $listResponse = $this->youtube->videos->listVideos("snippet,status", array('id' => $id));
+        
+        $video = $listResponse[0];
+        
+        $videoSnippet = $video['snippet'];
+        
+		if (array_key_exists('title', $data)) 			$videoSnippet->setTitle($data['title']);
+		if (array_key_exists('description', $data)) 	$videoSnippet->setDescription($data['description']);
+		if (array_key_exists('tags', $data)) 			$videoSnippet->setTags($data['tags']);
+        if (array_key_exists('category_id', $data)) 	$videoSnippet->setCategoryId($data['category_id']);
+        
+		// set the video status
+		$videoStatus = $video['status'];
+		$videoStatus->privacyStatus = $privacyStatus; #privacyStatus options are public, private, and unlisted
+		$video->setStatus($videoStatus);
+        $updateResponse = $this->youtube->videos->update("status,snippet", $video);
+        
+        return;
+        
+    }
+    
+     /**
+	 * Returns YouTube's processing statistics for a video with $id that has been uploaded.
+     * This is useful for knowing if a video is still processing on YouTube or otherwise knowing
+     * how much longer it will be processing for and it's percent.
+	 * @param  string 	$id    		The YouTube ID of the video in question.
+	 * @param  array 	$snippet 	An array of data.
+	 * @param  string 	$status  	The status of the uploaded video, set to 'public' by default.
+	 * @return mixed
+	 */
+    public function getProcessingStatistics($id) {
+
+        $listResponse = $this->youtube->videos->listVideos("processingDetails", array('id' => $id));
+        
+        $video = $listResponse[0];
+
+        return $video['processingDetails'];
+
+    }
+    
 }
