@@ -408,6 +408,8 @@ class Youtube
 	 */
     public function getProcessingStatistics($id) {
 
+        $this->handleAccessToken();
+
         $listResponse = $this->youtube->videos->listVideos("processingDetails", array('id' => $id));
         
         $video = $listResponse[0];
