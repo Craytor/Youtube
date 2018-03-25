@@ -87,22 +87,7 @@ class Youtube
         $this->handleAccessToken();
 
         try {
-            // Setup the Snippet
-            $snippet = new \Google_Service_YouTube_VideoSnippet();
-
-            if (array_key_exists('title', $data))       $snippet->setTitle($data['title']);
-            if (array_key_exists('description', $data)) $snippet->setDescription($data['description']);
-            if (array_key_exists('tags', $data))        $snippet->setTags($data['tags']);
-            if (array_key_exists('category_id', $data)) $snippet->setCategoryId($data['category_id']);
-
-            // Set the Privacy Status
-            $status = new \Google_Service_YouTube_VideoStatus();
-            $status->privacyStatus = $privacyStatus;
-
-            // Set the Snippet & Status
-            $video = new \Google_Service_YouTube_Video();
-            $video->setSnippet($snippet);
-            $video->setStatus($status);
+            $video = $this->getVideo($data, $privacyStatus);
 
             // Set the Chunk Size
             $chunkSize = 1 * 1024 * 1024;
@@ -375,28 +360,58 @@ class Youtube
     {
 
         $this->handleAccessToken();
-        
-        $listResponse = $this->youtube->videos->listVideos("snippet,status", array('id' => $id));
-        
-        $video = $listResponse[0];
-        
-        $videoSnippet = $video['snippet'];
-        
-		if (array_key_exists('title', $data)) 			$videoSnippet->setTitle($data['title']);
-		if (array_key_exists('description', $data)) 	$videoSnippet->setDescription($data['description']);
-		if (array_key_exists('tags', $data)) 			$videoSnippet->setTags($data['tags']);
-        if (array_key_exists('category_id', $data)) 	$videoSnippet->setCategoryId($data['category_id']);
-        
-		// set the video status
-		$videoStatus = $video['status'];
-		$videoStatus->privacyStatus = $privacyStatus; #privacyStatus options are public, private, and unlisted
-		$video->setStatus($videoStatus);
-        $updateResponse = $this->youtube->videos->update("status,snippet", $video);
-        
-        return;
-        
+
+        if (!$this->exists($id)) {
+            throw new Exception('A video matching id "'. $id .'" could not be found.');
+        }
+
+        try {
+            $video = $this->getVideo($data, $privacyStatus, $id);
+
+            $status = $this->youtube->videos->update('status,snippet', $video);
+
+            // Set ID of the Updated Video
+            $this->videoId = $status['id'];
+
+            // Set the Snippet from Updated Video
+            $this->snippet = $status['snippet'];
+        }  catch (\Google_Service_Exception $e) {
+            throw new Exception($e->getMessage());
+        } catch (\Google_Exception $e) {
+            throw new Exception($e->getMessage());
+        }
+
+        return $this;
+
     }
-    
+
+        /**
+     * @param $data
+     * @param $privacyStatus
+     * @param null $id
+     * @return \Google_Service_YouTube_Video
+     */
+    private function getVideo($data, $privacyStatus, $id = null) {
+        // Setup the Snippet
+        $snippet = new \Google_Service_YouTube_VideoSnippet();
+        if (array_key_exists('title', $data))       $snippet->setTitle($data['title']);
+        if (array_key_exists('description', $data)) $snippet->setDescription($data['description']);
+        if (array_key_exists('tags', $data))        $snippet->setTags($data['tags']);
+        if (array_key_exists('category_id', $data)) $snippet->setCategoryId($data['category_id']);
+        // Set the Privacy Status
+        $status = new \Google_Service_YouTube_VideoStatus();
+        $status->privacyStatus = $privacyStatus;
+        // Set the Snippet & Status
+        $video = new \Google_Service_YouTube_Video();
+        if ($id)
+        {
+            $video->setId($id);
+        }
+        $video->setSnippet($snippet);
+        $video->setStatus($status);
+        return $video;
+    }
+
      /**
 	 * Returns YouTube's processing statistics for a video with $id that has been uploaded.
      * This is useful for knowing if a video is still processing on YouTube or otherwise knowing
@@ -408,14 +423,12 @@ class Youtube
 	 */
     public function getProcessingStatistics($id) {
 
-        $this->handleAccessToken();
-
         $listResponse = $this->youtube->videos->listVideos("processingDetails", array('id' => $id));
-        
+
         $video = $listResponse[0];
 
         return $video['processingDetails'];
 
     }
-    
+
 }
