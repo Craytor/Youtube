@@ -401,6 +401,7 @@ class Youtube
         // Set the Privacy Status
         $status = new \Google_Service_YouTube_VideoStatus();
         $status->privacyStatus = $privacyStatus;
+        $status->embeddable = true;
         // Set the Snippet & Status
         $video = new \Google_Service_YouTube_Video();
         if ($id)
